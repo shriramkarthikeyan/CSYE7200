@@ -61,7 +61,15 @@ object test {
     personDF = personDF.join(VEHC_SEQ_EVENTS_DF,usingColumn = "id")
     personDF.show()
     personDF.printSchema()
+    personDF.select("DRIVER_AGE","AGE").show()
+    filterAge(personDF,46).select("CRASH_NUMB","DRIVER_AGE").show()
+
   }
+
+def filterAge(df:sql.DataFrame, age:Int) : sql.DataFrame = {
+  var df2 = df.filter(df("DRIVER_AGE") === age)
+  df2
+}
 
 }
 
