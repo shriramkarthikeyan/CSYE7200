@@ -7,6 +7,8 @@ import org.apache.spark.sql.functions.{monotonically_increasing_id, when}
 import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.functions.split
 import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.sql.functions.col
+import org.apache.spark.ml.feature.OneHotEncoder
 
 
 
@@ -21,7 +23,7 @@ object test {
       .option("header", "true")
       .option("inferSchema", "true")
       .load("C:\\Users\\shrir\\OneDrive - Northeastern University\\CSYE7200 Big Data Systems Enginnering with " +
-        "Scala - Project\\Data\\person\\*.csv")
+        "Scala - Project\\Data\\person\\sub\\*.csv")
 
 
     personDF = personDF.drop("CRASH_DATETIME"
@@ -101,10 +103,10 @@ object test {
 
     val spark = SparkSession.builder().getOrCreate()
     import spark.implicits._ //
-    var VEHC_SEQ_EVENTS_DF = personDF.withColumn("VEHC_SEQ_EVENTS", split($"VEHC_SEQ_EVENTS", "\\SEQ")).select(
-      $"VEHC_SEQ_EVENTS".getItem(0).as("col1"),
-      $"VEHC_SEQ_EVENTS".getItem(1).as("col2"),
-      $"VEHC_SEQ_EVENTS".getItem(2).as("col3")
+    var VEHC_SEQ_EVENTS_DF = personDF.withColumn("VEHC_SEQ_EVENTS", split(col("VEHC_SEQ_EVENTS"), "\\SEQ")).select(
+      col("VEHC_SEQ_EVENTS").getItem(0).as("col1"),
+      col("VEHC_SEQ_EVENTS").getItem(1).as("col2"),
+      col("VEHC_SEQ_EVENTS").getItem(2).as("col3")
     )
     personDF = personDF.withColumn("id", monotonically_increasing_id())
     VEHC_SEQ_EVENTS_DF = VEHC_SEQ_EVENTS_DF.withColumn("id", monotonically_increasing_id())
@@ -114,40 +116,40 @@ object test {
     personDF.printSchema()
     personDF.select("DRIVER_AGE","AGE").show()
     filterAge(personDF,46).select("CRASH_NUMB","DRIVER_AGE").show()
-    personDF = personDF.withColumn("FATALITY_BIN", when($"NUMB_FATAL_INJR" === 0, 0).otherwise(1))
+    personDF = personDF.withColumn("FATALITY_BIN", when(col("NUMB_FATAL_INJR") === 0, 0).otherwise(1))
 
     val DTInput = personDF.select(
-      "STREET_NUMB"
-      ,"RDWY"
-      ,"DIST_DIRC_FROM_INT"
-      ,"NEAR_INT_RDWY"
-      ,"DIST_DIRC_EXIT"
-      ,"LAT"
+//      "STREET_NUMB"
+//      ,"RDWY"
+//      ,"DIST_DIRC_FROM_INT"
+//      ,"NEAR_INT_RDWY"
+//      ,"DIST_DIRC_EXIT",
+      "LAT"
       ,"LON"
-      ,"DISTRICT_NUM"
-      ,"LCLTY_NAME"
-      ,"OWNER_ADDR_CITY_TOWN"
+//      ,"DISTRICT_NUM"
+//      ,"LCLTY_NAME"
+//      ,"OWNER_ADDR_CITY_TOWN"
       ,"OWNER_ADDR_STATE"
-      ,"VEHC_REG_STATE"
-      ,"WEATH_COND_DESCR"
-      ,"ROAD_SURF_COND_DESCR"
-      ,"MAX_INJR_SVRTY_CL"
-      ,"MANR_COLL_DESCR"
-      ,"FIRST_HRMF_EVENT_DESCR"
-      ,"MOST_HRMFL_EVT_CL"
-      ,"DRVR_CNTRB_CIRC_CL"
-      ,"VEHC_CONFIG_CL"
-      ,"HIT_RUN_DESCR"
-      ,"AGE_DRVR_YNGST"
-      ,"AGE_DRVR_OLDEST"
-      ,"DRVR_DISTRACTED_CL"
-      ,"DRIVER_AGE"
-      ,"DRIVER_DISTRACTED_TYPE_DESCR"
-      ,"DRVR_LCN_STATE"
-      ,"DRUG_SUSPD_TYPE_DESCR"
-      ,"SFTY_EQUP_DESC_1"
-      ,"SFTY_EQUP_DESC_2"
-      ,"ALC_SUSPD_TYPE_DESCR"
+//      ,"VEHC_REG_STATE"
+//      ,"WEATH_COND_DESCR"
+//      ,"ROAD_SURF_COND_DESCR"
+//      ,"MAX_INJR_SVRTY_CL"
+//      ,"MANR_COLL_DESCR"
+//      ,"FIRST_HRMF_EVENT_DESCR"
+//      ,"MOST_HRMFL_EVT_CL"
+//      ,"DRVR_CNTRB_CIRC_CL"
+//      ,"VEHC_CONFIG_CL"
+//      ,"HIT_RUN_DESCR"
+//      ,"AGE_DRVR_YNGST"
+//      ,"AGE_DRVR_OLDEST"
+//      ,"DRVR_DISTRACTED_CL"
+//      ,"DRIVER_AGE"
+//      ,"DRIVER_DISTRACTED_TYPE_DESCR"
+//      ,"DRVR_LCN_STATE"
+//      ,"DRUG_SUSPD_TYPE_DESCR"
+//      ,"SFTY_EQUP_DESC_1"
+//      ,"SFTY_EQUP_DESC_2"
+//      ,"ALC_SUSPD_TYPE_DESCR"
       ,"FATALITY_BIN"
     )
     predictFatality(DTInput)
@@ -160,43 +162,31 @@ object test {
   }
 
   def predictFatality(df:sql.DataFrame) : Unit = {
+    println("predictFatality Input")
+    df.printSchema()
 //    val training = spark.read.format("libsvm").load("data/mllib/sample_libsvm_data.txt")
-    val assembler =  new VectorAssembler()
-      .setInputCols(Array("STREET_NUMB"
-        ,"RDWY"
-        ,"DIST_DIRC_FROM_INT"
-        ,"NEAR_INT_RDWY"
-        ,"DIST_DIRC_EXIT"
-        ,"LAT"
-        ,"LON"
-        ,"DISTRICT_NUM"
-        ,"LCLTY_NAME"
-        ,"OWNER_ADDR_CITY_TOWN"
-        ,"OWNER_ADDR_STATE"
-        ,"VEHC_REG_STATE"
-        ,"WEATH_COND_DESCR"
-        ,"ROAD_SURF_COND_DESCR"
-        ,"MAX_INJR_SVRTY_CL"
-        ,"MANR_COLL_DESCR"
-        ,"FIRST_HRMF_EVENT_DESCR"
-        ,"MOST_HRMFL_EVT_CL"
-        ,"DRVR_CNTRB_CIRC_CL"
-        ,"VEHC_CONFIG_CL"
-        ,"HIT_RUN_DESCR"
-        ,"AGE_DRVR_YNGST"
-        ,"AGE_DRVR_OLDEST"
-        ,"DRVR_DISTRACTED_CL"
-        ,"DRIVER_AGE"
-        ,"DRIVER_DISTRACTED_TYPE_DESCR"
-        ,"DRVR_LCN_STATE"
-        ,"DRUG_SUSPD_TYPE_DESCR"
-        ,"SFTY_EQUP_DESC_1"
-        ,"SFTY_EQUP_DESC_2"
-        ,"ALC_SUSPD_TYPE_DESCR"))
-      .setOutputCol("features")
-    val df3 = assembler.transform(df).select($"FATALITY_BIN".cast(DoubleType).as("label"), $"features")
-    print(df3)
 
+    val encoder = new OneHotEncoder()
+      .setInputCols(Array(
+        "OWNER_ADDR_STATE"
+        ))
+      .setOutputCols(Array(
+        "OWNER_ADDR_STATE_VEC"
+        ))
+
+    print(encoder)
+    val model = encoder.fit(df)
+
+    val encoded = model.transform(df)
+    println("encoded:")
+    encoded.show()
+    val assembler =  new VectorAssembler()
+      .setInputCols(Array("LAT"
+        ,"LON"
+        ,"OWNER_ADDR_STATE_VEC"))
+      .setOutputCol("features")
+    println("assembler: ",assembler)
+    val df3 = assembler.transform(df).select(col("FATALITY_BIN").cast(DoubleType).as("label"), col("features"))
 
     val lr = new LogisticRegression()
       .setMaxIter(10)
@@ -204,7 +194,7 @@ object test {
       .setElasticNetParam(0.8)
 
     // Fit the model
-    val lrModel = lr.fit(df3)
+    val lrModel = lr.fit(encoded)
 
     // Print the coefficients and intercept for logistic regression
     println(s"Coefficients: ${lrModel.coefficients} Intercept: ${lrModel.intercept}")
@@ -216,7 +206,7 @@ object test {
       .setElasticNetParam(0.8)
       .setFamily("multinomial")
 
-    val mlrModel = mlr.fit(df3)
+    val mlrModel = mlr.fit(encoded)
 
     // Print the coefficients and intercepts for logistic regression with multinomial family
     println(s"Multinomial coefficients: ${mlrModel.coefficientMatrix}")
