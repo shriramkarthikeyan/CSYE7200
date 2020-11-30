@@ -1,12 +1,14 @@
+import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.{SparkConf, SparkContext, sql}
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.dsl.expressions.{DslExpression, StringToAttributeConversionHelper}
 import org.apache.spark.sql.functions.{monotonically_increasing_id, when}
-//import sparkObject.spark.implicits._
+import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.sql.functions.split
-import org.apache.spark.mllib.tree.DecisionTree
-import org.apache.spark.mllib.tree.model.DecisionTreeModel
-import org.apache.spark.mllib.util.MLUtils
+import org.apache.spark.ml.classification.LogisticRegression
+
+
 
 object test {
 
@@ -113,11 +115,112 @@ object test {
     personDF.select("DRIVER_AGE","AGE").show()
     filterAge(personDF,46).select("CRASH_NUMB","DRIVER_AGE").show()
     personDF = personDF.withColumn("FATALITY_BIN", when($"NUMB_FATAL_INJR" === 0, 0).otherwise(1))
+
+    val DTInput = personDF.select(
+      "STREET_NUMB"
+      ,"RDWY"
+      ,"DIST_DIRC_FROM_INT"
+      ,"NEAR_INT_RDWY"
+      ,"DIST_DIRC_EXIT"
+      ,"LAT"
+      ,"LON"
+      ,"DISTRICT_NUM"
+      ,"LCLTY_NAME"
+      ,"OWNER_ADDR_CITY_TOWN"
+      ,"OWNER_ADDR_STATE"
+      ,"VEHC_REG_STATE"
+      ,"WEATH_COND_DESCR"
+      ,"ROAD_SURF_COND_DESCR"
+      ,"MAX_INJR_SVRTY_CL"
+      ,"MANR_COLL_DESCR"
+      ,"FIRST_HRMF_EVENT_DESCR"
+      ,"MOST_HRMFL_EVT_CL"
+      ,"DRVR_CNTRB_CIRC_CL"
+      ,"VEHC_CONFIG_CL"
+      ,"HIT_RUN_DESCR"
+      ,"AGE_DRVR_YNGST"
+      ,"AGE_DRVR_OLDEST"
+      ,"DRVR_DISTRACTED_CL"
+      ,"DRIVER_AGE"
+      ,"DRIVER_DISTRACTED_TYPE_DESCR"
+      ,"DRVR_LCN_STATE"
+      ,"DRUG_SUSPD_TYPE_DESCR"
+      ,"SFTY_EQUP_DESC_1"
+      ,"SFTY_EQUP_DESC_2"
+      ,"ALC_SUSPD_TYPE_DESCR"
+      ,"FATALITY_BIN"
+    )
+    predictFatality(DTInput)
+
   }
 
   def filterAge(df:sql.DataFrame, age:Int) : sql.DataFrame = {
     var df2 = df.filter(df("DRIVER_AGE") === age)
     df2
+  }
+
+  def predictFatality(df:sql.DataFrame) : Unit = {
+//    val training = spark.read.format("libsvm").load("data/mllib/sample_libsvm_data.txt")
+    val assembler =  new VectorAssembler()
+      .setInputCols(Array("STREET_NUMB"
+        ,"RDWY"
+        ,"DIST_DIRC_FROM_INT"
+        ,"NEAR_INT_RDWY"
+        ,"DIST_DIRC_EXIT"
+        ,"LAT"
+        ,"LON"
+        ,"DISTRICT_NUM"
+        ,"LCLTY_NAME"
+        ,"OWNER_ADDR_CITY_TOWN"
+        ,"OWNER_ADDR_STATE"
+        ,"VEHC_REG_STATE"
+        ,"WEATH_COND_DESCR"
+        ,"ROAD_SURF_COND_DESCR"
+        ,"MAX_INJR_SVRTY_CL"
+        ,"MANR_COLL_DESCR"
+        ,"FIRST_HRMF_EVENT_DESCR"
+        ,"MOST_HRMFL_EVT_CL"
+        ,"DRVR_CNTRB_CIRC_CL"
+        ,"VEHC_CONFIG_CL"
+        ,"HIT_RUN_DESCR"
+        ,"AGE_DRVR_YNGST"
+        ,"AGE_DRVR_OLDEST"
+        ,"DRVR_DISTRACTED_CL"
+        ,"DRIVER_AGE"
+        ,"DRIVER_DISTRACTED_TYPE_DESCR"
+        ,"DRVR_LCN_STATE"
+        ,"DRUG_SUSPD_TYPE_DESCR"
+        ,"SFTY_EQUP_DESC_1"
+        ,"SFTY_EQUP_DESC_2"
+        ,"ALC_SUSPD_TYPE_DESCR"))
+      .setOutputCol("features")
+    val df3 = assembler.transform(df).select($"FATALITY_BIN".cast(DoubleType).as("label"), $"features")
+    print(df3)
+
+
+    val lr = new LogisticRegression()
+      .setMaxIter(10)
+      .setRegParam(0.3)
+      .setElasticNetParam(0.8)
+
+    // Fit the model
+    val lrModel = lr.fit(df3)
+
+    // Print the coefficients and intercept for logistic regression
+    println(s"Coefficients: ${lrModel.coefficients} Intercept: ${lrModel.intercept}")
+
+    // We can also use the multinomial family for binary classification
+    val mlr = new LogisticRegression()
+      .setMaxIter(10)
+      .setRegParam(0.3)
+      .setElasticNetParam(0.8)
+      .setFamily("multinomial")
+
+    val mlrModel = mlr.fit(df3)
+
+    // Print the coefficients and intercepts for logistic regression with multinomial family
+    println(s"Multinomial coefficients: ${mlrModel.coefficientMatrix}")
+    println(s"Multinomial intercepts: ${mlrModel.interceptVector}")
   }
 
 }

@@ -14,7 +14,7 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-hive" % "3.0.1" % "provided",
 
   // https://mvnrepository.com/artifact/org.apache.spark/spark-mllib
-  "org.apache.spark" %% "spark-mllib" % "3.0.1" % "compile"
+  "org.apache.spark" %% "spark-mllib" % "3.0.1"
 
 
 )

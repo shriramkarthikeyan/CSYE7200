@@ -16,7 +16,6 @@
  */
 
 // scalastyle:off println
-package org.apache.spark.examples.mllib
 
 import org.apache.spark.{SparkConf, SparkContext}
 // $example on$
@@ -37,6 +36,7 @@ object DecisionTreeClassificationExample {
     // Split the data into training and test sets (30% held out for testing)
     val splits = data.randomSplit(Array(0.7, 0.3))
     val (trainingData, testData) = (splits(0), splits(1))
+    print(trainingData)
 
     // Train a DecisionTree model.
     //  Empty categoricalFeaturesInfo indicates all features are continuous.
