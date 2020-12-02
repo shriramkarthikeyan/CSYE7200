@@ -1,3 +1,6 @@
+import breeze.linalg.Vector.castFunc
+import breeze.linalg.max
+import org.apache.spark
 import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.{SparkConf, SparkContext, sql}
@@ -9,7 +12,7 @@ import org.apache.spark.sql.functions.split
 import org.apache.spark.ml.classification.LogisticRegression
 import org.apache.spark.sql.functions.col
 import org.apache.spark.ml.feature.OneHotEncoder
-
+import org.apache.spark.ml.feature.StringIndexer
 
 
 object test {
@@ -18,6 +21,7 @@ object test {
 
     var conf = new SparkConf().setAppName("Read CSV File").setMaster("local[*]")
     val sc = new SparkContext(conf)
+    sc.setLogLevel("WARN")
     val sqlContext = new SQLContext(sc)
     var personDF = sqlContext.read.format("csv")
       .option("header", "true")
@@ -119,37 +123,33 @@ object test {
     personDF = personDF.withColumn("FATALITY_BIN", when(col("NUMB_FATAL_INJR") === 0, 0).otherwise(1))
 
     val DTInput = personDF.select(
-//      "STREET_NUMB"
-//      ,"RDWY"
-//      ,"DIST_DIRC_FROM_INT"
-//      ,"NEAR_INT_RDWY"
-//      ,"DIST_DIRC_EXIT",
+
       "LAT"
       ,"LON"
-//      ,"DISTRICT_NUM"
-//      ,"LCLTY_NAME"
-//      ,"OWNER_ADDR_CITY_TOWN"
+      ,"DISTRICT_NUM"
+      ,"LCLTY_NAME"
+      ,"OWNER_ADDR_CITY_TOWN"
       ,"OWNER_ADDR_STATE"
-//      ,"VEHC_REG_STATE"
-//      ,"WEATH_COND_DESCR"
-//      ,"ROAD_SURF_COND_DESCR"
-//      ,"MAX_INJR_SVRTY_CL"
-//      ,"MANR_COLL_DESCR"
-//      ,"FIRST_HRMF_EVENT_DESCR"
-//      ,"MOST_HRMFL_EVT_CL"
-//      ,"DRVR_CNTRB_CIRC_CL"
-//      ,"VEHC_CONFIG_CL"
-//      ,"HIT_RUN_DESCR"
-//      ,"AGE_DRVR_YNGST"
-//      ,"AGE_DRVR_OLDEST"
-//      ,"DRVR_DISTRACTED_CL"
-//      ,"DRIVER_AGE"
-//      ,"DRIVER_DISTRACTED_TYPE_DESCR"
-//      ,"DRVR_LCN_STATE"
-//      ,"DRUG_SUSPD_TYPE_DESCR"
-//      ,"SFTY_EQUP_DESC_1"
-//      ,"SFTY_EQUP_DESC_2"
-//      ,"ALC_SUSPD_TYPE_DESCR"
+      ,"VEHC_REG_STATE"
+      ,"WEATH_COND_DESCR"
+      ,"ROAD_SURF_COND_DESCR"
+      ,"MAX_INJR_SVRTY_CL"
+      ,"MANR_COLL_DESCR"
+      ,"FIRST_HRMF_EVENT_DESCR"
+      ,"MOST_HRMFL_EVT_CL"
+      ,"DRVR_CNTRB_CIRC_CL"
+      ,"VEHC_CONFIG_CL"
+      ,"HIT_RUN_DESCR"
+      ,"AGE_DRVR_YNGST"
+      ,"AGE_DRVR_OLDEST"
+      ,"DRVR_DISTRACTED_CL"
+      ,"DRIVER_AGE"
+      ,"DRIVER_DISTRACTED_TYPE_DESCR"
+      ,"DRVR_LCN_STATE"
+      ,"DRUG_SUSPD_TYPE_DESCR"
+      ,"SFTY_EQUP_DESC_1"
+      ,"SFTY_EQUP_DESC_2"
+      ,"ALC_SUSPD_TYPE_DESCR"
       ,"FATALITY_BIN"
     )
     predictFatality(DTInput)
@@ -162,40 +162,104 @@ object test {
   }
 
   def predictFatality(df:sql.DataFrame) : Unit = {
+
     println("predictFatality Input")
     df.printSchema()
+    println("count before drop: ",df.count())
+    val df1 = df.na.fill("NA")
+    println("count after drop: ",df1.count())
 //    val training = spark.read.format("libsvm").load("data/mllib/sample_libsvm_data.txt")
 
-    val encoder = new OneHotEncoder()
+    val indexer = new StringIndexer()
       .setInputCols(Array(
-        "OWNER_ADDR_STATE"
-        ))
+     "OWNER_ADDR_CITY_TOWN"
+      ,"OWNER_ADDR_STATE"
+      ,"VEHC_REG_STATE"
+      ,"WEATH_COND_DESCR"
+      ,"ROAD_SURF_COND_DESCR"
+      ,"MAX_INJR_SVRTY_CL"
+      ,"MANR_COLL_DESCR"
+      ,"FIRST_HRMF_EVENT_DESCR"
+      ,"MOST_HRMFL_EVT_CL"
+      ,"DRVR_CNTRB_CIRC_CL"
+      ,"VEHC_CONFIG_CL"
+      ,"HIT_RUN_DESCR"
+      ,"AGE_DRVR_YNGST"
+      ,"AGE_DRVR_OLDEST"
+      ,"DRVR_DISTRACTED_CL"
+      ,"DRIVER_DISTRACTED_TYPE_DESCR"
+      ,"DRVR_LCN_STATE"
+      ,"DRUG_SUSPD_TYPE_DESCR"
+      ,"SFTY_EQUP_DESC_1"
+      ,"SFTY_EQUP_DESC_2"
+      ,"ALC_SUSPD_TYPE_DESCR"))
       .setOutputCols(Array(
-        "OWNER_ADDR_STATE_VEC"
-        ))
+        "OWNER_ADDR_CITY_TOWN_index"
+        ,"OWNER_ADDR_STATE_index"
+        ,"VEHC_REG_STATE_index"
+        ,"WEATH_COND_DESCR_index"
+        ,"ROAD_SURF_COND_DESCR_index"
+        ,"MAX_INJR_SVRTY_CL_index"
+        ,"MANR_COLL_DESCR_index"
+        ,"FIRST_HRMF_EVENT_DESCR_index"
+        ,"MOST_HRMFL_EVT_CL_index"
+        ,"DRVR_CNTRB_CIRC_CL_index"
+        ,"VEHC_CONFIG_CL_index"
+        ,"HIT_RUN_DESCR_index"
+        ,"AGE_DRVR_YNGST_index"
+        ,"AGE_DRVR_OLDEST_index"
+        ,"DRVR_DISTRACTED_CL_index"
+        ,"DRIVER_DISTRACTED_TYPE_DESCR_index"
+        ,"DRVR_LCN_STATE_index"
+        ,"DRUG_SUSPD_TYPE_DESCR_index"
+        ,"SFTY_EQUP_DESC_1_index"
+        ,"SFTY_EQUP_DESC_2_index"
+        ,"ALC_SUSPD_TYPE_DESCR_index"))
 
-    print(encoder)
-    val model = encoder.fit(df)
+    val indexed = indexer.fit(df1).transform(df1)
+    indexed.show()
 
-    val encoded = model.transform(df)
-    println("encoded:")
-    encoded.show()
+
     val assembler =  new VectorAssembler()
       .setInputCols(Array("LAT"
         ,"LON"
-        ,"OWNER_ADDR_STATE_VEC"))
+        ,"OWNER_ADDR_CITY_TOWN_index"
+        ,"OWNER_ADDR_STATE_index"
+        ,"VEHC_REG_STATE_index"
+        ,"WEATH_COND_DESCR_index"
+        ,"ROAD_SURF_COND_DESCR_index"
+        ,"MAX_INJR_SVRTY_CL_index"
+        ,"MANR_COLL_DESCR_index"
+        ,"FIRST_HRMF_EVENT_DESCR_index"
+        ,"MOST_HRMFL_EVT_CL_index"
+        ,"DRVR_CNTRB_CIRC_CL_index"
+        ,"VEHC_CONFIG_CL_index"
+        ,"HIT_RUN_DESCR_index"
+        ,"AGE_DRVR_YNGST_index"
+        ,"AGE_DRVR_OLDEST_index"
+        ,"DRVR_DISTRACTED_CL_index"
+        ,"DRIVER_DISTRACTED_TYPE_DESCR_index"
+        ,"DRVR_LCN_STATE_index"
+        ,"DRUG_SUSPD_TYPE_DESCR_index"
+        ,"SFTY_EQUP_DESC_1_index"
+        ,"SFTY_EQUP_DESC_2_index"
+        ,"ALC_SUSPD_TYPE_DESCR_index"))
       .setOutputCol("features")
+      .setHandleInvalid("skip")
     println("assembler: ",assembler)
-    val df3 = assembler.transform(df).select(col("FATALITY_BIN").cast(DoubleType).as("label"), col("features"))
-
+    val df3 = assembler.transform(indexed).select(col("FATALITY_BIN").cast(DoubleType).as("label"), col("features"))
+    df3.show()
+    println("assembler count from df3: ",df3.count())
+    df3.write.json("target/assembler.json")
+    print("hello")
     val lr = new LogisticRegression()
       .setMaxIter(10)
       .setRegParam(0.3)
       .setElasticNetParam(0.8)
-
+    println("set params")
     // Fit the model
-    val lrModel = lr.fit(encoded)
-
+    val lrModel = lr.fit(df3)
+    println("fit")
     // Print the coefficients and intercept for logistic regression
     println(s"Coefficients: ${lrModel.coefficients} Intercept: ${lrModel.intercept}")
 
@@ -206,11 +270,36 @@ object test {
       .setElasticNetParam(0.8)
       .setFamily("multinomial")
 
-    val mlrModel = mlr.fit(encoded)
+    val mlrModel = mlr.fit(df3)
 
     // Print the coefficients and intercepts for logistic regression with multinomial family
     println(s"Multinomial coefficients: ${mlrModel.coefficientMatrix}")
     println(s"Multinomial intercepts: ${mlrModel.interceptVector}")
+
+
+    /*
+    Summary
+     */
+    // Extract the summary from the returned LogisticRegressionModel instance trained in the earlier
+    // example
+    val trainingSummary = lrModel.binarySummary
+
+    // Obtain the objective per iteration.
+    val objectiveHistory = trainingSummary.objectiveHistory
+    println("objectiveHistory:")
+    objectiveHistory.foreach(loss => println(loss))
+
+    // Obtain the receiver-operating characteristic as a dataframe and areaUnderROC.
+    val roc = trainingSummary.roc
+    roc.show()
+    println(s"areaUnderROC: ${trainingSummary.areaUnderROC}")
+
+//    // Set the model threshold to maximize F-Measure
+//    val fMeasure = trainingSummary.fMeasureByThreshold
+//    val maxFMeasure = fMeasure.select(max("F-Measure")).head().getDouble(0)
+//    val bestThreshold = fMeasure.where(col("F-Measure") === maxFMeasure)
+//      .select("threshold").head().getDouble(0)
+//    lrModel.setThreshold(bestThreshold)
   }
 
 }
