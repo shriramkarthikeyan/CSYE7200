@@ -1,10 +1,16 @@
 import org.apache.spark.sql
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.functions.col
 
 // Primary constructor
 class crashes(locality: String){
 
   var age:Int = 0
   var vehicle:String = null
+  val spark: SparkSession = SparkSession.builder()
+    .master("local[1]")
+    .appName("Spark")
+    .getOrCreate()
 
   // Auxiliary Constructor
   def this(locality: String, age: Int, vehicle: String) {
@@ -15,17 +21,24 @@ class crashes(locality: String){
 
   def crash_records(df:sql.DataFrame): sql.DataFrame = {
     try {
+      val desiredThings:Map[String, String] = Map()
+      //(if (locality != null) ("LCLTY_NAME" -> locality))
+
+      val desired = desiredThings + ("LCLTY_NAME",locality)
+
       val crash_df = df.filter(
-        df("LCLTY_NAME").like(locality) ||
-        (df("DRIVER_AGE") === age) ||
-        (df("VEHC_CONFIG_CL").like(vehicle))
+        col("LCLTY_NAME").like(locality) ||
+        (col("DRIVER_AGE") === age) ||
+        (col("VEHC_CONFIG_CL").like(vehicle))
       )
       crash_df.show()
       crash_df
     }
-//    catch {
-//      case e: Exception => println("No records found", e) None
-//    }
+    catch {
+      case e: Exception => println("No records found", e)
+        val dataf = spark.emptyDataFrame
+        dataf
+    }
   }
 
   def filter_crashes(df: sql.DataFrame): sql.DataFrame = {
