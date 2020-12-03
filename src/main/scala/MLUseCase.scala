@@ -47,10 +47,10 @@ object MLUseCase {
     personDF.show()
     personDF.printSchema()
     personDF.select("DRIVER_AGE","AGE").show()
-    filterAge(personDF,46).select("CRASH_NUMB","DRIVER_AGE").show()
+//    filterAge(personDF,46).select("CRASH_NUMB","DRIVER_AGE").show()
     personDF = personDF.withColumn("FATALITY_BIN", when(col("NUMB_FATAL_INJR") === 0, 0).otherwise(1))
 
-    val DTInput = personDF.select(
+    val personDFSubset = personDF.select(
 
       "LAT"
       ,"LON"
@@ -61,9 +61,9 @@ object MLUseCase {
       ,"VEHC_REG_STATE"
       ,"WEATH_COND_DESCR"
       ,"ROAD_SURF_COND_DESCR"
-      ,"MAX_INJR_SVRTY_CL"
+//      ,"MAX_INJR_SVRTY_CL"
       ,"MANR_COLL_DESCR"
-      ,"FIRST_HRMF_EVENT_DESCR"
+//      ,"FIRST_HRMF_EVENT_DESCR"
       ,"MOST_HRMFL_EVT_CL"
       ,"DRVR_CNTRB_CIRC_CL"
       ,"VEHC_CONFIG_CL"
@@ -80,9 +80,19 @@ object MLUseCase {
       ,"ALC_SUSPD_TYPE_DESCR"
       ,"FATALITY_BIN"
     )
-    val cleanDF = cleanData(DTInput)
+    personDF.repartition(1).write.csv("target/personDF.csv")
+    val cleanDF = cleanData(personDFSubset)
+    cleanDF.rdd
+      .repartition(1)
+      .map(_.toString()
+        .replace("[","")
+        .replace("]", "")
+        .replace(" (","")
+        .replace(")",""))
+      .saveAsTextFile("target/cleandf/data")
     predictFatalityLR(cleanDF)
-    naiveBayesModel(cleanDF)
+
+    //    naiveBayesModel(cleanDF)
 
   }
 
@@ -105,9 +115,9 @@ object MLUseCase {
         , "VEHC_REG_STATE"
         , "WEATH_COND_DESCR"
         , "ROAD_SURF_COND_DESCR"
-        , "MAX_INJR_SVRTY_CL"
+//        , "MAX_INJR_SVRTY_CL"
         , "MANR_COLL_DESCR"
-        , "FIRST_HRMF_EVENT_DESCR"
+//        , "FIRST_HRMF_EVENT_DESCR"
         , "MOST_HRMFL_EVT_CL"
         , "DRVR_CNTRB_CIRC_CL"
         , "VEHC_CONFIG_CL"
@@ -127,9 +137,9 @@ object MLUseCase {
         , "VEHC_REG_STATE_index"
         , "WEATH_COND_DESCR_index"
         , "ROAD_SURF_COND_DESCR_index"
-        , "MAX_INJR_SVRTY_CL_index"
+//        , "MAX_INJR_SVRTY_CL_index"
         , "MANR_COLL_DESCR_index"
-        , "FIRST_HRMF_EVENT_DESCR_index"
+//        , "FIRST_HRMF_EVENT_DESCR_index"
         , "MOST_HRMFL_EVT_CL_index"
         , "DRVR_CNTRB_CIRC_CL_index"
         , "VEHC_CONFIG_CL_index"
@@ -156,9 +166,9 @@ object MLUseCase {
         , "VEHC_REG_STATE_index"
         , "WEATH_COND_DESCR_index"
         , "ROAD_SURF_COND_DESCR_index"
-        , "MAX_INJR_SVRTY_CL_index"
+//        , "MAX_INJR_SVRTY_CL_index"
         , "MANR_COLL_DESCR_index"
-        , "FIRST_HRMF_EVENT_DESCR_index"
+//        , "FIRST_HRMF_EVENT_DESCR_index"
         , "MOST_HRMFL_EVT_CL_index"
         , "DRVR_CNTRB_CIRC_CL_index"
         , "VEHC_CONFIG_CL_index"
@@ -236,25 +246,25 @@ object MLUseCase {
 
 
   }
-  def naiveBayesModel(df:sql.DataFrame) = {
-    //Naive Bayes
-    //    val conf = new SparkConf().setAppName("NaiveBayesExample")
-    //    val sc = new SparkContext(conf)
-    val data = MLUtils.loadLibSVMFile(sc, "data/mllib/sample_libsvm_data.txt")
-    println(data)
-    // Split data into training (60%) and test (40%).
-    val Array(training, test) = data.randomSplit(Array(0.6, 0.4))
-
-    val model = NaiveBayes.train(training, lambda = 1.0, modelType = "multinomial")
-
-    val predictionAndLabel = test.map(p => (model.predict(p.features), p.label))
-    val accuracy = 1.0 * predictionAndLabel.filter(x => x._1 == x._2).count() / test.count()
-
-    // Save and load model
-    model.save(sc, "target/tmp/myNaiveBayesModel")
-    val sameModel = NaiveBayesModel.load(sc, "target/tmp/myNaiveBayesModel")
-    // $example off$
-  }
+//  def naiveBayesModel(df:sql.DataFrame) = {
+//    //Naive Bayes
+//    //    val conf = new SparkConf().setAppName("NaiveBayesExample")
+//    //    val sc = new SparkContext(conf)
+//    val data = MLUtils.loadLibSVMFile(sc, "data/mllib/sample_libsvm_data.txt")
+//    println(data)
+//    // Split data into training (60%) and test (40%).
+//    val Array(training, test) = data.randomSplit(Array(0.6, 0.4))
+//
+//    val model = NaiveBayes.train(training, lambda = 1.0, modelType = "multinomial")
+//
+//    val predictionAndLabel = test.map(p => (model.predict(p.features), p.label))
+//    val accuracy = 1.0 * predictionAndLabel.filter(x => x._1 == x._2).count() / test.count()
+//
+//    // Save and load model
+//    model.save(sc, "target/tmp/myNaiveBayesModel")
+//    val sameModel = NaiveBayesModel.load(sc, "target/tmp/myNaiveBayesModel")
+//    // $example off$
+//  }
 
 
 
