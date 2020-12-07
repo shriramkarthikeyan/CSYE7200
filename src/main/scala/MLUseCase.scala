@@ -85,8 +85,8 @@ object MLUseCase {
       ,"FATALITY_BIN"
     )
 //    personDFSubset.repartition(1).write.csv("target/personDFSubset")
-    val cleanDF = cleanData(personDFSubset)
-    println("cleanDF: ",cleanDF.printSchema())
+//    val cleanDF = cleanData(personDFSubset)
+//    println("cleanDF: ",cleanDF.printSchema())
 //    cleanDF.rdd
 //      .repartition(1)
 //      .map(_.toString()
@@ -96,7 +96,7 @@ object MLUseCase {
 //        .replace(")",""))
 //      .saveAsTextFile("target/cleandf/data")
 
-    predictFatalityLR(cleanDF)
+//    predictFatalityLR(cleanDF)
     val NBInput = personDFSubset.drop("LAT","LON")
     println("NB Input: ",NBInput.show())
     naiveBayesModel(NBInput)
@@ -342,7 +342,7 @@ object MLUseCase {
 //      .setOutputCol("pcaFeatures")
 //      .setK(21)
 //      .fit(df)
-    print("PCA initialized")
+//    print("PCA initialized")
     val labeled = df3.rdd.map(row => LabeledPoint(
       row.getAs[Double]("label"),
       org.apache.spark.mllib.linalg.Vectors.fromML(row.getAs[org.apache.spark.ml.linalg.SparseVector]("features"))
@@ -350,12 +350,23 @@ object MLUseCase {
 
     // Split data into training (60%) and test (40%).
     val Array(training, test) = labeled.randomSplit(Array(0.6, 0.4))
+    print("sample test data ")
+    test.take(10).foreach(x => println(x + " "))
 
     val model = NaiveBayes.train(training, lambda = 1.0, modelType = "multinomial")
 
     val predictionAndLabel = test.map(p => (model.predict(p.features), p.label))
+    println("prediction and label")
+    predictionAndLabel.take(10).foreach(x => println(x + " "))
+    val probAndLabel = test.map(p => (model.predictProbabilities(p.features), p.label))
+    println("probability and label")
+    probAndLabel
+      .filter {case (_, v) => v == 1.0}
+      .take(10)
+      .foreach(x => println(x + " "))
     val accuracy = 1.0 * predictionAndLabel.filter(x => x._1 == x._2).count() / test.count()
     println("accuracy of Naive Bayes: ", accuracy)
+
 
 //    // Save and load model
 //    model.save(sc, "target/tmp/myNaiveBayesModel")
