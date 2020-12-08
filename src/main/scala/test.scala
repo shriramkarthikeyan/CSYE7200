@@ -10,10 +10,12 @@ object test {
     // Creating object of crashes class
     val obj_crash = new crashes("DORCHESTER",58,null)
     val crash_df = obj_crash.filter_crashes(combinedDF)
-    val crashes = obj_crash.crash_records(crash_df)
-    printResults(crashes)
+    //val crashes = obj_crash.crash_records(crash_df)
+    //printResults(crashes)
 
-    split_columns(crash_df,"VEHC_CONFIG_CL")
+    //split_columns_vehicle(crash_df,"VEHC_CONFIG_CL")
+    //split_columns_event(crash_df,"MOST_HRMFL_EVT_CL")
+    split_columns_driver(crash_df,"DRVR_CNTRB_CIRC_CL")
   }
 
   def combineData(): sql.DataFrame = {
@@ -66,12 +68,40 @@ object test {
    case _ => print("invalid")
   }
 
-  def split_columns(df: sql.DataFrame, column_name: String) :sql.DataFrame = {
+  def split_columns_vehicle(df: sql.DataFrame, column_name: String) :sql.DataFrame = {
     var dataframe = df.na.fill("V1:()", Array(column_name))
-    dataframe = dataframe.withColumn("Vehicle_One", split(col(column_name),"\\)").getItem(0))
-    dataframe = dataframe.withColumn("Vehicle_Config",regexp_replace(col("Vehicle_One"),"V1:\\(",""))
+    dataframe = dataframe.withColumn("One_"+ column_name, split(col(column_name),"\\)").getItem(0))
+    dataframe = dataframe.withColumn("First_" + column_name, regexp_replace(col("One_"+ column_name),"[V1:\\(]*[V2:\\(]*[V3:\\(]*[V4:\\(]","")).drop("One_"+ column_name)
+    //dataframe = dataframe.withColumn("Vehicle_Config",regexp_replace(col("Vehicle_One"),"V2:\\(",""))
+    //dataframe = dataframe.withColumn("Vehicle_Config",regexp_replace(col("Vehicle_One"),"V3:\\(",""))
+    //dataframe = dataframe.withColumn("Vehicle_Config",regexp_replace(col("Vehicle_One"),"V4:\\(",""))
+//    dataframe.rdd
+//      .repartition(1)
+//      .map(_.toString())
+//      .saveAsTextFile("target/personDF_split_cols")
+    dataframe.coalesce(1).write.option("header", "true").csv("src/splitDF.csv")
     dataframe.show()
     dataframe
+  }
+
+  def split_columns_event(df: sql.DataFrame, column_name: String) :sql.DataFrame = {
+    var dataframe = df.na.fill("V1:()", Array(column_name))
+    dataframe = dataframe.withColumn("Event_One", split(col(column_name), "\\)").getItem(0))
+    dataframe = dataframe.withColumn(column_name + "Event_Harm", regexp_replace(col("Event_One"), "[V1:\\(]*[V2:\\(]*[V3:\\(]*[V4:\\(]", ""))
+    dataframe.show()
+    dataframe
+  }
+
+    def split_columns_driver(df: sql.DataFrame, column_name: String) :sql.DataFrame = {
+      var dataframe = df.na.fill("D1:()", Array(column_name))
+      dataframe = dataframe.withColumn("Driver_One", split(col(column_name),"[\\)]*[\\/]").getItem(0))
+      dataframe = dataframe.withColumn("Driver_Control",regexp_replace(col("Driver_One"),"[D1:]*[D2:]*[D3:]*[D4:]","")).drop("Driver_One")
+      dataframe = dataframe.withColumn("First",regexp_replace(col("Driver_Control"),"[\\(]*[\\)]","")).drop("Driver_Control")
+      dataframe = dataframe.withColumn("First_" + column_name,regexp_replace(col("First"),"[\\(]","")).drop("First")
+      //dataframe.coalesce(1).write.option("header", "true").csv("src/splitDriver.csv")
+      dataframe.show()
+      dataframe
+
   }
 }
 
