@@ -1,4 +1,3 @@
-import breeze.stats.mean
 import org.apache.spark.ml.feature.{OneHotEncoder, PCA, StringIndexer, VectorAssembler}
 import org.apache.spark.sql.{Row, SQLContext, SparkSession}
 import org.apache.spark.{SparkConf, SparkContext, sql}
@@ -6,8 +5,6 @@ import org.apache.spark.sql.functions.{array, col, monotonically_increasing_id, 
 import org.apache.spark.sql.types.{DoubleType, IntegerType, StructField}
 import org.apache.spark.ml.classification.LogisticRegression
 import org.apache.spark.mllib.classification.{NaiveBayes, NaiveBayesModel}
-import org.apache.spark.mllib.util.MLUtils
-import org.apache.spark.ml.feature.PCA
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 import org.apache.spark.ml.linalg.Vectors
@@ -271,9 +268,21 @@ object MLUseCase {
     println("assembled_test_data: ",assembled_test_data.take(10).foreach(x => println(x + " ")))
     assembled_test_data.show()
     val assembled_test_data_vec = assembled_test_data.select(array(assembled_test_data.columns.map(col(_)): _*)).rdd.map(_.getSeq[Double](0))
+    assembled_test_data_vec.take(10).foreach(x => println(x + " "))
+//    val assembled_test_data_vector = assembled_test_data.map{x:Row => x.getAs[Vector](0)}
+    import org.apache.spark.mllib.linalg.Vectors
 
-//    assembled_test_data_vec.take(10).foreach(x => println(x + " "))
-    predict_fatality_NB_model.predict(assembled_test_data_vec)
+    val assembled_test_data_vector = assembled_test_data
+      .rdd
+      .map{
+        row => Vectors.dense(row.getAs[Seq[Double]]("features").toArray)
+      }
+    val input_prediction = predict_fatality_NB_model.predict(assembled_test_data_vector)
+    val input_prediction_prob = predict_fatality_NB_model.predictProbabilities(assembled_test_data_vector)
+    println("predictions completed!")
+    input_prediction.collect().foreach(println)
+//    println("input_prediction: ",input_prediction.collect().foreach(println))
+//    println("input_prediction_prob: ",input_prediction_prob.collect().foreach(println))
 
   }
 

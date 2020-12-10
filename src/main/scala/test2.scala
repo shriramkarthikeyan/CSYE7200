@@ -2,7 +2,7 @@ import org.apache.spark.sql.functions.{col, _}
 import org.apache.spark.sql.{Column, SQLContext, SparkSession}
 import org.apache.spark.{SparkConf, SparkContext, sql}
 
-object test {
+object test2 {
   def main(args: Array[String]): Unit = {
     val combinedDF = combineData()
     printResults(combinedDF)
