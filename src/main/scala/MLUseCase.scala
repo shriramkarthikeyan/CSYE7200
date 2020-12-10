@@ -277,11 +277,14 @@ object MLUseCase {
       .map{
         row => Vectors.dense(row.getAs[Seq[Double]]("features").toArray)
       }
+//    assembled_test_data_vector.collect().foreach(println)
     val input_prediction = predict_fatality_NB_model.predict(assembled_test_data_vector)
     val input_prediction_prob = predict_fatality_NB_model.predictProbabilities(assembled_test_data_vector)
     println("predictions completed!")
-    input_prediction.collect().foreach(println)
+    input_prediction.take(10).foreach(x => println(x + " "))
+//    input_prediction.collect().foreach(println)
 //    println("input_prediction: ",input_prediction.collect().foreach(println))
+
 //    println("input_prediction_prob: ",input_prediction_prob.collect().foreach(println))
 
   }
