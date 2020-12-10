@@ -6,22 +6,26 @@ import scala.util.control.Breaks._
 // Primary constructor
 class crashes(locality: String){
 
-  var age:Int = 0
+  var age:Int = -1
   var vehicle:String = null
+  var weather:String = null
+  var road:String = null
   val spark: SparkSession = SparkSession.builder()
     .master("local[1]")
     .appName("Spark")
     .getOrCreate()
 
   // Auxiliary Constructor
-  def this(locality: String, age: Int, vehicle: String) {
+  def this(locality: String, age: Int, vehicle: String, weather: String, road: String) {
     this(locality) // Invoking primary constructor
     this.age = age
     this.vehicle = vehicle
+    this.weather = weather
+    this.road = road
   }
 
   def filter_records(df:sql.DataFrame, column: String, value: String): sql.DataFrame ={
-    var filtered_data = df.filter(col(column).like(value))
+    var filtered_data = df.filter(col(column).like("%"+value+"%"))
     filtered_data
   }
 
@@ -32,6 +36,8 @@ class crashes(locality: String){
       (if (locality != null) desiredThings = desiredThings + ("LCLTY_NAME" -> locality))
       (if (age > 0) desiredThings = desiredThings + ("DRIVER_AGE" -> age.toString))
       (if (vehicle != null) desiredThings = desiredThings + ("VEHC_CONFIG_CL" -> vehicle))
+      (if (weather != null) desiredThings = desiredThings + ("WEATH_COND_DESCR" -> weather))
+      (if (road != null) desiredThings = desiredThings + ("ROAD_SURF_COND_DESCR" -> road))
 
       var df_c = df.filter(col("DRIVER_AGE").like("-99"))
       println("desiredThings = " + desiredThings)
@@ -44,12 +50,6 @@ class crashes(locality: String){
           df_c = filter_records(data,col(i).toString(),desiredThings(i))
           data = df_c
 
-//          if (data.filter(col(i).like(desiredThings(i))).count() == 0) (
-//            df_c = data.filter(col("DRIVER_AGE").like("-99"))
-//            )
-//          if (data.filter(col(i).like(desiredThings(i))).count() == 0) (
-//            break
-//            )
         }
       }
 //      desiredThings.keys.foreach { i =>
@@ -89,37 +89,23 @@ class crashes(locality: String){
 
   def filter_crashes(df: sql.DataFrame): sql.DataFrame = {
     var DTInput = df.select(
-      "STREET_NUMB"
-      ,"RDWY"
-      ,"DIST_DIRC_FROM_INT"
-      ,"NEAR_INT_RDWY"
-      ,"DIST_DIRC_EXIT"
-      ,"LAT"
-      ,"LON"
-      ,"DISTRICT_NUM"
-      ,"LCLTY_NAME"
-      ,"OWNER_ADDR_CITY_TOWN"
-      ,"OWNER_ADDR_STATE"
-      ,"VEHC_REG_STATE"
-      ,"WEATH_COND_DESCR"
-      ,"ROAD_SURF_COND_DESCR"
-      ,"MAX_INJR_SVRTY_CL"
-      ,"MANR_COLL_DESCR"
-      ,"FIRST_HRMF_EVENT_DESCR"
-      ,"MOST_HRMFL_EVT_CL"
+      "CRASH_DATETIME"
+    ,"DISTRICT_NUM"
+       ,"LCLTY_NAME"
+       ,"OWNER_ADDR_CITY_TOWN"
+       ,"OWNER_ADDR_STATE"
+       ,"VEHC_REG_STATE"
+       ,"WEATH_COND_DESCR"
+       ,"ROAD_SURF_COND_DESCR"
+       ,"FIRST_HRMF_EVENT_DESCR"
+       ,"VEHC_CONFG_DESCR"
+       ,"AGE_DRVR_YNGST"
+       ,"AGE_DRVR_OLDEST"
+       ,"DRIVER_DISTRACTED_TYPE_DESCR"
+       ,"DRVR_LCN_STATE"
+       ,"DRUG_SUSPD_TYPE_DESCR"
+       ,"ALC_SUSPD_TYPE_DESCR"
       ,"DRVR_CNTRB_CIRC_CL"
-      ,"VEHC_CONFIG_CL"
-      ,"HIT_RUN_DESCR"
-      ,"AGE_DRVR_YNGST"
-      ,"AGE_DRVR_OLDEST"
-      ,"DRVR_DISTRACTED_CL"
-      ,"DRIVER_AGE"
-      ,"DRIVER_DISTRACTED_TYPE_DESCR"
-      ,"DRVR_LCN_STATE"
-      ,"DRUG_SUSPD_TYPE_DESCR"
-      ,"SFTY_EQUP_DESC_1"
-      ,"SFTY_EQUP_DESC_2"
-      ,"ALC_SUSPD_TYPE_DESCR"
     )
     DTInput = DTInput.dropDuplicates()
     DTInput
