@@ -10,6 +10,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.mllib.linalg.Vectors
 
 
+
+
 object MLUseCase {
   var conf = new SparkConf().setAppName("Read CSV File").setMaster("local[*]")
   val sc = new SparkContext(conf)
@@ -32,7 +34,7 @@ object MLUseCase {
 
     personDF = personDF.drop("CRASH_STATUS","POLC_AGNCY_TYPE_DESCR","VEHC_TRVL_DIRC_CL","MM_RTE","DIST_DIRC_MILEMARKER","MILEMARKER","EXIT_RTE","EXIT_NUMB","DIST_DIRC_LANDMARK","LANDMARK","X","Y","RMV_DOC_IDS","CRASH_RPT_IDS","RPA_ABBR","VEHC_EMER_USE_CL","VEHC_TOWED_FROM_SCENE_CL","FMCSA_RPTBL_CL","FMCSA_RPTBL","ROAD_CNTRB_DESCR","SCHL_BUS_RELD_DESCR","WORK_ZONE_RELD_DESCR","HAZ_MAT_PLACARD_DESCR","VEHC_REG_TYPE_CODE","NON_MTRST_TYPE_CL","NON_MTRST_ACTN_CL","NON_MTRST_LOC_CL","AADT","AADT_YEAR","PK_PCT_SUT","AV_PCT_SUT","PK_PCT_CT","AV_PCT_CT","CURB","TRUCK_RTE","LT_SIDEWLK","RT_SIDEWLK","SHLDR_LT_W","SHLDR_LT_T","SURFACE_WD","SHLDR_RT_W","SHLDR_RT_T","OPP_LANES","MED_WIDTH","MED_TYPE","URBAN_TYPE","F_CLASS","URBAN_AREA","FD_AID_RTE","FACILITY","OPERATION","CONTROL","PEAK_LANE","STREETNAME","FROMSTREETNAME","TOSTREETNAME","CITY","STRUCT_CND","TERRAIN","URBAN_LOC_TYPE","AADT_DERIV","STATN_NUM","OP_DIR_SL","SHLDR_UL_T","SHLDR_UL_W","T_EXC_TYPE","T_EXC_TIME","F_F_CLASS"
     )
-
+    personDF = personDF.dropDuplicates()
     personDF.printSchema()
 
     println(personDF.count())
@@ -69,7 +71,7 @@ object MLUseCase {
       ,"ALC_SUSPD_TYPE_DESCR"
       ,"FATALITY_BIN"
     )
-    println("personDF_split_cols")
+//    println("personDF_split_cols")
 //    val personDF_split_cols = split_columns(personDF,"VEHC_SEQ_EVENTS")
 //    personDF_split_cols
 //      .select("CRASH_NUMB","Vehicle_One","Vehicle_Config")
@@ -237,10 +239,18 @@ object MLUseCase {
       , "CRASH_YEAR"
       , "CRASH_HOUR"
     )
-    test_data.show()
+//    test_data.show()
+
+    /////////////search results data frame/////////////////////////
+    val obj_crash = new crashes("DORCHESTER",58,null,"Clear","Dry")
+    val crash_df = obj_crash.filter_crashes(personDF)
+    val crashes = obj_crash.crash_records(crash_df)
+    var split_diver = split_columns_driver(crashes,"DRVR_CNTRB_CIRC_CL").drop("DRVR_CNTRB_CIRC_CL")
+    var split_dt_dr = split_date_time(split_diver,"CRASH_DATETIME").drop("CRASH_DATETIME")
+    //////////////////////////////////////////////
 
 
-    val indexed_test_data = indexer.fit(df1).transform(test_data)
+    val indexed_test_data = indexer.fit(df1).transform(split_dt_dr)
     println("indexed_test_data: ",indexed_test_data)
     indexed_test_data.show()
     println("indexed_test_data count: ",indexed_test_data.count())
@@ -267,6 +277,7 @@ object MLUseCase {
 //    println("input_prediction: ",input_prediction.collect().foreach(println))
 
 //    println("input_prediction_prob: ",input_prediction_prob.collect().foreach(println))
+
 
   }
 

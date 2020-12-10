@@ -8,7 +8,7 @@ object test {
     printResults(combinedDF)
 
     // Creating object of crashes class
-    var obj_crash = new crashes("DORCHESTER",42,null)
+    val obj_crash = new crashes("DORCHESTER",58,null,"Clear","Dry")
     val crash_df = obj_crash.filter_crashes(combinedDF)
     obj_crash.crash_records(crash_df)
     printResults(obj_crash.crash_records(crash_df))
