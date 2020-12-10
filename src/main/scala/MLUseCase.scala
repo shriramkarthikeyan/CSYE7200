@@ -1,14 +1,13 @@
-import org.apache.spark.ml.feature.{OneHotEncoder, PCA, StringIndexer, VectorAssembler}
+import org.apache.spark.ml.feature.{StringIndexer, VectorAssembler}
 import org.apache.spark.sql.{Row, SQLContext, SparkSession}
 import org.apache.spark.{SparkConf, SparkContext, sql}
-import org.apache.spark.sql.functions.{array, col, monotonically_increasing_id, regexp_replace, split, when}
-import org.apache.spark.sql.types.{DoubleType, IntegerType, StructField}
-import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.sql.functions.{array, col, regexp_replace, split, when}
+import org.apache.spark.sql.types.{DoubleType, StructField}
 import org.apache.spark.mllib.classification.{NaiveBayes, NaiveBayesModel}
+import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
-import org.apache.spark.ml.linalg.Vectors
-import org.apache.spark.mllib.feature.{StandardScaler, StandardScalerModel}
+import org.apache.spark.mllib.linalg.Vectors
 
 
 object MLUseCase {
@@ -38,20 +37,6 @@ object MLUseCase {
 
     println(personDF.count())
 
-
-//    var VEHC_SEQ_EVENTS_DF = personDF.withColumn("VEHC_SEQ_EVENTS", split(col("VEHC_SEQ_EVENTS"), "\\SEQ")).select(
-//      col("VEHC_SEQ_EVENTS").getItem(0).as("col1"),
-//      col("VEHC_SEQ_EVENTS").getItem(1).as("col2"),
-//      col("VEHC_SEQ_EVENTS").getItem(2).as("col3")
-//    )
-//    personDF = personDF.withColumn("id", monotonically_increasing_id())
-//    VEHC_SEQ_EVENTS_DF = VEHC_SEQ_EVENTS_DF.withColumn("id", monotonically_increasing_id())
-//
-//    personDF = personDF.join(VEHC_SEQ_EVENTS_DF,usingColumn = "id")
-//    personDF.show()
-//    personDF.printSchema()
-//    personDF.select("DRIVER_AGE","AGE").show()
-//    filterAge(personDF,46).select("CRASH_NUMB","DRIVER_AGE").show()
     personDF = personDF.withColumn("FATALITY_BIN", when(col("NUMB_FATAL_INJR") === 0, 0).otherwise(1))
     val personDFSubset = personDF.select(
 
@@ -194,11 +179,7 @@ object MLUseCase {
       .setHandleInvalid("skip")
     println("assembler: ", assembler)
     val df3 = assembler.transform(indexed).select(col("FATALITY_BIN").cast(DoubleType).as("label"), col("features"))
-    println(assembler.params)
-    val labeledNBTestTrainInput = df3.rdd.map(row => LabeledPoint(
-      row.getAs[Double]("label"),
-      org.apache.spark.mllib.linalg.Vectors.fromML(row.getAs[org.apache.spark.ml.linalg.SparseVector]("features"))
-    ))
+
     ////////////////////////////////////
     println("running Naive Bayes model")
     val labeled = df3.rdd.map(row => LabeledPoint(
@@ -270,7 +251,6 @@ object MLUseCase {
     val assembled_test_data_vec = assembled_test_data.select(array(assembled_test_data.columns.map(col(_)): _*)).rdd.map(_.getSeq[Double](0))
     assembled_test_data_vec.take(10).foreach(x => println(x + " "))
 //    val assembled_test_data_vector = assembled_test_data.map{x:Row => x.getAs[Vector](0)}
-    import org.apache.spark.mllib.linalg.Vectors
 
     val assembled_test_data_vector = assembled_test_data
       .rdd
@@ -280,8 +260,8 @@ object MLUseCase {
 //    assembled_test_data_vector.collect().foreach(println)
     val input_prediction = predict_fatality_NB_model.predict(assembled_test_data_vector)
     val input_prediction_prob = predict_fatality_NB_model.predictProbabilities(assembled_test_data_vector)
-    println("predictions completed!")
-    input_prediction.toDF().show()
+//    println("predictions completed!")
+//    input_prediction.toDF().show()
 //    input_prediction.take(10).foreach(x => println(x + " "))
 //    input_prediction.collect().foreach(println)
 //    println("input_prediction: ",input_prediction.collect().foreach(println))
@@ -311,6 +291,72 @@ object MLUseCase {
       .foreach(x => println(x + " "))
     val accuracy = 1.0 * predictionAndLabel.filter(x => x._1 == x._2).count() / test.count()
     println("accuracy of Naive Bayes: ", accuracy)
+
+//    ////////////////convert index back to string///////////////////
+//    val converter = new IndexToString()
+//      .setInputCol("categoryIndex")
+//      .setOutputCol("originalCategory")
+//
+//    val converted = converter.transform(test)
+//
+//    println(s"Transformed indexed column '${converter.getInputCol}' back to original string " +
+//      s"column '${converter.getOutputCol}' using labels in metadata")
+//    converted.select("id", "categoryIndex", "originalCategory").show()
+//
+//    ///////////////////////////////////
+
+
+    //////////////Classification metrics//////////////////////////////////////////////////
+    // Compute raw scores on the test set
+    val predictionAndLabels = test.map { case LabeledPoint(label, features) =>
+      val prediction = model.predict(features)
+      (prediction, label)
+    }
+    // Instantiate metrics object
+    val metrics = new BinaryClassificationMetrics(predictionAndLabels)
+
+    // Precision by threshold
+    val precision = metrics.precisionByThreshold
+    precision.foreach { case (t, p) =>
+      println(s"Threshold: $t, Precision: $p")
+    }
+
+    // Recall by threshold
+    val recall = metrics.recallByThreshold
+    recall.foreach { case (t, r) =>
+      println(s"Threshold: $t, Recall: $r")
+    }
+
+    // Precision-Recall Curve
+    val PRC = metrics.pr
+
+    // F-measure
+    val f1Score = metrics.fMeasureByThreshold
+    f1Score.foreach { case (t, f) =>
+      println(s"Threshold: $t, F-score: $f, Beta = 1")
+    }
+
+    val beta = 0.5
+    val fScore = metrics.fMeasureByThreshold(beta)
+    f1Score.foreach { case (t, f) =>
+      println(s"Threshold: $t, F-score: $f, Beta = 0.5")
+    }
+
+    // AUPRC
+    val auPRC = metrics.areaUnderPR
+    println("Area under precision-recall curve = " + auPRC)
+
+    // Compute thresholds used in ROC and PR curves
+    val thresholds = precision.map(_._1)
+
+    // ROC Curve
+    val roc = metrics.roc
+
+    // AUROC
+    val auROC = metrics.areaUnderROC
+    println("Area under ROC = " + auROC)
+    /////////////////////////////////////////////////////////////////////////////////////
+
 
 //    // Save and load model
 //    model.save(sc, "target/tmp/myNaiveBayesModel")
@@ -347,14 +393,6 @@ object MLUseCase {
     dataframe.show()
     dataframe
   }
-
-//  def predictProbabilityOfCrash(df: sql.DataFrame) //:RDD[(Vector,Double)]
-//  = {
-//    var input = scala.io.StdIn.readLine()
-//    println(input)
-//  }
-
-
 
 
 }
