@@ -6,22 +6,28 @@ import scala.util.control.Breaks._
 // Primary constructor
 class crashes(locality: String){
 
-  var age:Int = 0
+  var age:Int = -1
   var vehicle:String = null
+  var weather:String = null
+  var road:String = null
+  var fatality:Int = -1
   val spark: SparkSession = SparkSession.builder()
     .master("local[1]")
     .appName("Spark")
     .getOrCreate()
 
   // Auxiliary Constructor
-  def this(locality: String, age: Int, vehicle: String) {
+  def this(locality: String, age: Int, vehicle: String, weather: String, road: String, fatality: Int) {
     this(locality) // Invoking primary constructor
     this.age = age
     this.vehicle = vehicle
+    this.weather = weather
+    this.road = weather
+    this.fatality = fatality
   }
 
   def filter_records(df:sql.DataFrame, column: String, value: String): sql.DataFrame ={
-    var filtered_data = df.filter(col(column).like(value))
+    var filtered_data = df.filter(col(column).like("%"+value+"%"))
     filtered_data
   }
 
@@ -32,6 +38,9 @@ class crashes(locality: String){
       (if (locality != null) desiredThings = desiredThings + ("LCLTY_NAME" -> locality))
       (if (age > 0) desiredThings = desiredThings + ("DRIVER_AGE" -> age.toString))
       (if (vehicle != null) desiredThings = desiredThings + ("VEHC_CONFIG_CL" -> vehicle))
+      (if (weather != null) desiredThings = desiredThings + ("WEATH_COND_DESCR" -> weather))
+      (if (road != null) desiredThings = desiredThings + ("ROAD_SURF_COND_DESCR" -> road))
+      (if (fatality == 0 || fatality == 1) desiredThings = desiredThings + ("FATALITY_BIN" -> fatality.toString))
 
       var df_c = df.filter(col("DRIVER_AGE").like("-99"))
       println("desiredThings = " + desiredThings)
@@ -44,12 +53,6 @@ class crashes(locality: String){
           df_c = filter_records(data,col(i).toString(),desiredThings(i))
           data = df_c
 
-//          if (data.filter(col(i).like(desiredThings(i))).count() == 0) (
-//            df_c = data.filter(col("DRIVER_AGE").like("-99"))
-//            )
-//          if (data.filter(col(i).like(desiredThings(i))).count() == 0) (
-//            break
-//            )
         }
       }
 //      desiredThings.keys.foreach { i =>
@@ -89,7 +92,10 @@ class crashes(locality: String){
 
   def filter_crashes(df: sql.DataFrame): sql.DataFrame = {
     var DTInput = df.select(
-      "STREET_NUMB"
+      "CRASH_DATE_TEXT"
+      ,"CRASH_TIME"
+      ,"CRASH_DATETIME"
+      ,"STREET_NUMB"
       ,"RDWY"
       ,"DIST_DIRC_FROM_INT"
       ,"NEAR_INT_RDWY"
@@ -120,6 +126,7 @@ class crashes(locality: String){
       ,"SFTY_EQUP_DESC_1"
       ,"SFTY_EQUP_DESC_2"
       ,"ALC_SUSPD_TYPE_DESCR"
+      ,"FATALITY_BIN"
     )
     DTInput = DTInput.dropDuplicates()
     DTInput
