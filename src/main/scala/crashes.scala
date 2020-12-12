@@ -45,8 +45,8 @@ class crashes(locality: String){
       breakable
       {
         desiredThings.keys.foreach { i =>
-          println("Key = " + i)
-          println(" Value = " + desiredThings(i))
+          //println("Key = " + i)
+          //println(" Value = " + desiredThings(i))
           df_c = filter_records(data,col(i).toString(),desiredThings(i))
           data = df_c
 
