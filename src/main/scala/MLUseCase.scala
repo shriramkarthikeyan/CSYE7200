@@ -71,30 +71,9 @@ object MLUseCase {
       ,"ALC_SUSPD_TYPE_DESCR"
       ,"FATALITY_BIN"
     )
-//    println("personDF_split_cols")
-//    val personDF_split_cols = split_columns(personDF,"VEHC_SEQ_EVENTS")
-//    personDF_split_cols
-//      .select("CRASH_NUMB","Vehicle_One","Vehicle_Config")
-//      .show()
-//    personDF_split_cols.printSchema()
-//    personDF_split_cols.rdd
-//      .repartition(1)
-//      .map(_.toString())
-//      .saveAsTextFile("target/personDF_split_cols")
 
-//    personDFSubset.repartition(1).write.csv("target/personDFSubset")
-//    val cleanDF = cleanData(personDFSubset)
-//    println("cleanDF: ",cleanDF.printSchema())
-//    cleanDF.rdd
-//      .repartition(1)
-//      .map(_.toString()
-//        .replace("[","")
-//        .replace("]", "")
-//        .replace(" (","")
-//        .replace(")",""))
-//      .saveAsTextFile("target/cleandf/data")
 
-//    predictFatalityLR(cleanDF)
+
     val personDFSubset_dt = split_date_time(personDFSubset,"CRASH_DATETIME")
     val personDFSubset_dt_drvr = split_columns_driver(personDFSubset_dt,"DRVR_CNTRB_CIRC_CL")
     val NBTrainTestInput = personDFSubset_dt_drvr.drop("LAT","LON","CRASH_DATETIME","DRVR_CNTRB_CIRC_CL")
