@@ -1,8 +1,8 @@
 import org.apache.spark.ml.feature.{StringIndexer, VectorAssembler}
-import org.apache.spark.sql.{Row, SQLContext, SparkSession}
+import org.apache.spark.sql.{SQLContext, SparkSession}
 import org.apache.spark.{SparkConf, SparkContext, sql}
 import org.apache.spark.sql.functions.{array, col, regexp_replace, split, when}
-import org.apache.spark.sql.types.{DoubleType, StructField}
+import org.apache.spark.sql.types.{DoubleType}
 import org.apache.spark.mllib.classification.{NaiveBayes, NaiveBayesModel}
 import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
 import org.apache.spark.mllib.regression.LabeledPoint
@@ -35,9 +35,9 @@ object MLUseCase {
     personDF = personDF.drop("CRASH_STATUS","POLC_AGNCY_TYPE_DESCR","VEHC_TRVL_DIRC_CL","MM_RTE","DIST_DIRC_MILEMARKER","MILEMARKER","EXIT_RTE","EXIT_NUMB","DIST_DIRC_LANDMARK","LANDMARK","X","Y","RMV_DOC_IDS","CRASH_RPT_IDS","RPA_ABBR","VEHC_EMER_USE_CL","VEHC_TOWED_FROM_SCENE_CL","FMCSA_RPTBL_CL","FMCSA_RPTBL","ROAD_CNTRB_DESCR","SCHL_BUS_RELD_DESCR","WORK_ZONE_RELD_DESCR","HAZ_MAT_PLACARD_DESCR","VEHC_REG_TYPE_CODE","NON_MTRST_TYPE_CL","NON_MTRST_ACTN_CL","NON_MTRST_LOC_CL","AADT","AADT_YEAR","PK_PCT_SUT","AV_PCT_SUT","PK_PCT_CT","AV_PCT_CT","CURB","TRUCK_RTE","LT_SIDEWLK","RT_SIDEWLK","SHLDR_LT_W","SHLDR_LT_T","SURFACE_WD","SHLDR_RT_W","SHLDR_RT_T","OPP_LANES","MED_WIDTH","MED_TYPE","URBAN_TYPE","F_CLASS","URBAN_AREA","FD_AID_RTE","FACILITY","OPERATION","CONTROL","PEAK_LANE","STREETNAME","FROMSTREETNAME","TOSTREETNAME","CITY","STRUCT_CND","TERRAIN","URBAN_LOC_TYPE","AADT_DERIV","STATN_NUM","OP_DIR_SL","SHLDR_UL_T","SHLDR_UL_W","T_EXC_TYPE","T_EXC_TIME","F_F_CLASS"
     )
     personDF = personDF.dropDuplicates()
-    personDF.printSchema()
+//    personDF.printSchema()
 
-    println(personDF.count())
+//    println(personDF.count())
 
     personDF = personDF.withColumn("FATALITY_BIN", when(col("NUMB_FATAL_INJR") === 0, 0).otherwise(1))
     val personDFSubset = personDF.select(
@@ -99,11 +99,11 @@ object MLUseCase {
     val personDFSubset_dt_drvr = split_columns_driver(personDFSubset_dt,"DRVR_CNTRB_CIRC_CL")
     val NBTrainTestInput = personDFSubset_dt_drvr.drop("LAT","LON","CRASH_DATETIME","DRVR_CNTRB_CIRC_CL")
 
-    NBTrainTestInput.printSchema()
-    println("NB Input: ",NBTrainTestInput.show())
+//    NBTrainTestInput.printSchema()
+//    println("NB Input: ",NBTrainTestInput.show())
     ////////////////////////////////////////////////////////
     val df1 = NBTrainTestInput.na.fill("NA")
-    df1.show()
+//    df1.show()
     val indexer = new StringIndexer()
       .setInputCols(Array(
         "DISTRICT_NUM"
@@ -152,7 +152,7 @@ object MLUseCase {
       .setHandleInvalid("keep")
 
     val indexed = indexer.fit(df1).transform(df1)
-    indexed.show()
+//    indexed.show()
 
 
     val assembler = new VectorAssembler()
@@ -179,7 +179,7 @@ object MLUseCase {
         ,"CRASH_HOUR_index"))
       .setOutputCol("features")
       .setHandleInvalid("skip")
-    println("assembler: ", assembler)
+//    println("assembler: ", assembler)
     val df3 = assembler.transform(indexed).select(col("FATALITY_BIN").cast(DoubleType).as("label"), col("features"))
 
     ////////////////////////////////////
@@ -192,8 +192,8 @@ object MLUseCase {
     ////////////////////////////////////////////////////////
     val predict_fatality_NB_model = naiveBayesModel(labeled)
 //    predictProbabilityOfCrash()
-    println("predict_fatality_NB_model labels: ",predict_fatality_NB_model.labels)
-    println("predict_fatality_NB_model modelType: ",predict_fatality_NB_model.modelType)
+//    println("predict_fatality_NB_model labels: ",predict_fatality_NB_model.labels)
+//    println("predict_fatality_NB_model modelType: ",predict_fatality_NB_model.modelType)
     val test_data = List((
       "6"//"DISTRICT_NUM"
       ,"DORCHESTER" //,"LCLTY_NAME"
@@ -251,15 +251,15 @@ object MLUseCase {
 
 
     val indexed_test_data = indexer.fit(df1).transform(split_dt_dr)
-    println("indexed_test_data: ",indexed_test_data)
-    indexed_test_data.show()
-    println("indexed_test_data count: ",indexed_test_data.count())
+//    println("indexed_test_data: ",indexed_test_data)
+//    indexed_test_data.show()
+//    println("indexed_test_data count: ",indexed_test_data.count())
     val assembled_test_data = assembler.transform(indexed_test_data).select(col("features"))
-    println("assembled_test_data count: ",assembled_test_data.count())
-    println("assembled_test_data: ",assembled_test_data.take(10).foreach(x => println(x + " ")))
-    assembled_test_data.show()
+//    println("assembled_test_data count: ",assembled_test_data.count())
+//    println("assembled_test_data: ",assembled_test_data.take(10).foreach(x => println(x + " ")))
+//    assembled_test_data.show()
     val assembled_test_data_vec = assembled_test_data.select(array(assembled_test_data.columns.map(col(_)): _*)).rdd.map(_.getSeq[Double](0))
-    assembled_test_data_vec.take(10).foreach(x => println(x + " "))
+//    assembled_test_data_vec.take(10).foreach(x => println(x + " "))
 //    val assembled_test_data_vector = assembled_test_data.map{x:Row => x.getAs[Vector](0)}
 
     val assembled_test_data_vector = assembled_test_data
@@ -286,22 +286,22 @@ object MLUseCase {
 
     // Split data into training (60%) and test (40%).
     val Array(training, test) = labeled.randomSplit(Array(0.66, 0.34))
-    print("sample test data ")
-    test.take(10).foreach(x => println(x + " "))
+//    print("sample test data ")
+//    test.take(10).foreach(x => println(x + " "))
 
     val model = NaiveBayes.train(training, lambda = 1.0, modelType = "multinomial")
 
     val predictionAndLabel = test.map(p => (model.predict(p.features), p.label))
-    println("prediction and label")
-    predictionAndLabel.take(10).foreach(x => println(x + " "))
+//    println("prediction and label")
+//    predictionAndLabel.take(10).foreach(x => println(x + " "))
     val probAndLabel = test.map(p => (model.predictProbabilities(p.features), p.label))
-    println("probability and label")
-    probAndLabel
-      .filter {case (_, v) => v == 1.0}
-      .take(10)
-      .foreach(x => println(x + " "))
-    val accuracy = 1.0 * predictionAndLabel.filter(x => x._1 == x._2).count() / test.count()
-    println("accuracy of Naive Bayes: ", accuracy)
+//    println("probability and label")
+//    probAndLabel
+//      .filter {case (_, v) => v == 1.0}
+//      .take(10)
+//      .foreach(x => println(x + " "))
+//    val accuracy = 1.0 * predictionAndLabel.filter(x => x._1 == x._2).count() / test.count()
+//    println("accuracy of Naive Bayes: ", accuracy)
 
 //    ////////////////convert index back to string///////////////////
 //    val converter = new IndexToString()
@@ -380,7 +380,7 @@ object MLUseCase {
     var dataframe = df.na.fill("V1:()", Array(column_name))
     dataframe = dataframe.withColumn("Vehicle_One", split(col(column_name),"\\)").getItem(0))
     dataframe = dataframe.withColumn("Vehicle_Config",regexp_replace(col("Vehicle_One"),"V1:\\(",""))
-    dataframe.show()
+//    dataframe.show()
     dataframe
   }
   def split_date_time(df: sql.DataFrame, column_name: String) :sql.DataFrame = {
@@ -390,7 +390,7 @@ object MLUseCase {
     dataframe = dataframe.withColumn("CRASH_YEAR", split(col("CRASH_YEAR_TIME"),"\\ ").getItem(0))
     dataframe = dataframe.withColumn("TIME", split(col("CRASH_YEAR_TIME"),"\\ ").getItem(1)).drop("CRASH_YEAR_TIME")
     dataframe = dataframe.withColumn("CRASH_HOUR", split(col("TIME"),"\\:").getItem(0)).drop("TIME")
-    dataframe.show()
+//    dataframe.show()
     dataframe
   }
 
@@ -401,7 +401,7 @@ object MLUseCase {
     dataframe = dataframe.withColumn("First",regexp_replace(col("Driver_Control"),"[\\(]*[\\)]","")).drop("Driver_Control")
     dataframe = dataframe.withColumn("First_" + column_name,regexp_replace(col("First"),"[\\(]","")).drop("First")
     //dataframe.coalesce(1).write.option("header", "true").csv("src/splitDriver.csv")
-    dataframe.show()
+//    dataframe.show()
     dataframe
   }
 
