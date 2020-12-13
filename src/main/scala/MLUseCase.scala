@@ -2,7 +2,7 @@ import org.apache.spark.ml.feature.{StringIndexer, VectorAssembler}
 import org.apache.spark.sql.{SQLContext, SparkSession}
 import org.apache.spark.{SparkConf, SparkContext, sql}
 import org.apache.spark.sql.functions.{array, col, regexp_replace, split, when}
-import org.apache.spark.sql.types.{DoubleType}
+import org.apache.spark.sql.types.DoubleType
 import org.apache.spark.mllib.classification.{NaiveBayes, NaiveBayesModel}
 import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
 import org.apache.spark.mllib.regression.LabeledPoint
@@ -25,20 +25,22 @@ object MLUseCase {
 //    val sc = new SparkContext(conf)
 //    sc.setLogLevel("WARN")
 //    val sqlContext = new SQLContext(sc)
+    //Load all the source CSV files into a sql.DataFrame
     var personDF = sqlContext.read.format("csv")
       .option("header", "true")
       .option("inferSchema", "true")
       .load("C:\\Users\\shrir\\OneDrive - Northeastern University\\CSYE7200 Big Data Systems Enginnering with " +
         "Scala - Project\\Data\\person\\*.csv")
 
-
+    //Drop the values which are not needed
     personDF = personDF.drop("CRASH_STATUS","POLC_AGNCY_TYPE_DESCR","VEHC_TRVL_DIRC_CL","MM_RTE","DIST_DIRC_MILEMARKER","MILEMARKER","EXIT_RTE","EXIT_NUMB","DIST_DIRC_LANDMARK","LANDMARK","X","Y","RMV_DOC_IDS","CRASH_RPT_IDS","RPA_ABBR","VEHC_EMER_USE_CL","VEHC_TOWED_FROM_SCENE_CL","FMCSA_RPTBL_CL","FMCSA_RPTBL","ROAD_CNTRB_DESCR","SCHL_BUS_RELD_DESCR","WORK_ZONE_RELD_DESCR","HAZ_MAT_PLACARD_DESCR","VEHC_REG_TYPE_CODE","NON_MTRST_TYPE_CL","NON_MTRST_ACTN_CL","NON_MTRST_LOC_CL","AADT","AADT_YEAR","PK_PCT_SUT","AV_PCT_SUT","PK_PCT_CT","AV_PCT_CT","CURB","TRUCK_RTE","LT_SIDEWLK","RT_SIDEWLK","SHLDR_LT_W","SHLDR_LT_T","SURFACE_WD","SHLDR_RT_W","SHLDR_RT_T","OPP_LANES","MED_WIDTH","MED_TYPE","URBAN_TYPE","F_CLASS","URBAN_AREA","FD_AID_RTE","FACILITY","OPERATION","CONTROL","PEAK_LANE","STREETNAME","FROMSTREETNAME","TOSTREETNAME","CITY","STRUCT_CND","TERRAIN","URBAN_LOC_TYPE","AADT_DERIV","STATN_NUM","OP_DIR_SL","SHLDR_UL_T","SHLDR_UL_W","T_EXC_TYPE","T_EXC_TIME","F_F_CLASS"
     )
+    // Drop duplicate values
     personDF = personDF.dropDuplicates()
 //    personDF.printSchema()
 
 //    println(personDF.count())
-
+    // Create  a categorical column variable to specify whether a fatality took place in that crash or not based ont he number of fatal injuries
     personDF = personDF.withColumn("FATALITY_BIN", when(col("NUMB_FATAL_INJR") === 0, 0).otherwise(1))
     val personDFSubset = personDF.select(
 
@@ -73,16 +75,20 @@ object MLUseCase {
     )
 
 
-
+    // split the datetime column into date parts
     val personDFSubset_dt = split_date_time(personDFSubset,"CRASH_DATETIME")
+    // get the first driver contribution reason for the crash
     val personDFSubset_dt_drvr = split_columns_driver(personDFSubset_dt,"DRVR_CNTRB_CIRC_CL")
+    // drop latitude, longitude and the columns we cleaned above
     val NBTrainTestInput = personDFSubset_dt_drvr.drop("LAT","LON","CRASH_DATETIME","DRVR_CNTRB_CIRC_CL")
 
 //    NBTrainTestInput.printSchema()
 //    println("NB Input: ",NBTrainTestInput.show())
     ////////////////////////////////////////////////////////
+    // fill nulls with NA
     val df1 = NBTrainTestInput.na.fill("NA")
 //    df1.show()
+    // index the string values into categorical integers
     val indexer = new StringIndexer()
       .setInputCols(Array(
         "DISTRICT_NUM"
@@ -128,12 +134,13 @@ object MLUseCase {
         ,"CRASH_YEAR_index"
         ,"CRASH_HOUR_index"
       ))
+      // if the indexer sees a new value it will keep it and assign a new value instead of throwing an error
       .setHandleInvalid("keep")
 
     val indexed = indexer.fit(df1).transform(df1)
 //    indexed.show()
 
-
+    // assemble the indexed data into a feature vector and a label containing the value of FATALITY_BIN
     val assembler = new VectorAssembler()
       .setInputCols(Array(
         "DISTRICT_NUM_index"
@@ -163,16 +170,19 @@ object MLUseCase {
 
     ////////////////////////////////////
     println("running Naive Bayes model")
+    // map labels and features into an RDD of labeled points
     val labeled = df3.rdd.map(row => LabeledPoint(
       row.getAs[Double]("label"),
       org.apache.spark.mllib.linalg.Vectors.fromML(row.getAs[org.apache.spark.ml.linalg.SparseVector]("features"))
     ))
 
     ////////////////////////////////////////////////////////
+    // run naive bayes model on labeled data
     val predict_fatality_NB_model = naiveBayesModel(labeled)
 //    predictProbabilityOfCrash()
 //    println("predict_fatality_NB_model labels: ",predict_fatality_NB_model.labels)
 //    println("predict_fatality_NB_model modelType: ",predict_fatality_NB_model.modelType)
+    // create a test data point
     val test_data = List((
       "6"//"DISTRICT_NUM"
       ,"DORCHESTER" //,"LCLTY_NAME"
@@ -267,12 +277,13 @@ object MLUseCase {
     val Array(training, test) = labeled.randomSplit(Array(0.66, 0.34))
 //    print("sample test data ")
 //    test.take(10).foreach(x => println(x + " "))
-
+    // train the model
     val model = NaiveBayes.train(training, lambda = 1.0, modelType = "multinomial")
-
+    //get the predicted values
     val predictionAndLabel = test.map(p => (model.predict(p.features), p.label))
 //    println("prediction and label")
 //    predictionAndLabel.take(10).foreach(x => println(x + " "))
+    //get the predicted probabilities
     val probAndLabel = test.map(p => (model.predictProbabilities(p.features), p.label))
 //    println("probability and label")
 //    probAndLabel
