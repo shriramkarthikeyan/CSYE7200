@@ -366,27 +366,32 @@ object MLUseCase {
     model
   }
 
+  // Method to split vehicle column and extract detail of first Vehicle
   def split_columns(df: sql.DataFrame, column_name: String) :sql.DataFrame = {
-    var dataframe = df.na.fill("V1:()", Array(column_name))
-    dataframe = dataframe.withColumn("Vehicle_One", split(col(column_name),"\\)").getItem(0))
-    dataframe = dataframe.withColumn("Vehicle_Config",regexp_replace(col("Vehicle_One"),"V1:\\(",""))
+    var dataframe = df.na.fill("V1:()", Array(column_name)) // Replacing NA with V1:()
+    dataframe = dataframe.withColumn("Vehicle_One", split(col(column_name),"\\)").getItem(0)) // Extracting characters before first bracket
+    dataframe = dataframe.withColumn("Vehicle_Config",regexp_replace(col("Vehicle_One"),"V1:\\(","")) // Replacing V1: and comma(,) with blank
 //    dataframe.show()
     dataframe
   }
+  
+  // Method to split datetime column into year, month, date and hour of the day
   def split_date_time(df: sql.DataFrame, column_name: String) :sql.DataFrame = {
-    var dataframe = df.withColumn("CRASH_MONTH", split(col(column_name),"[\\/]").getItem(0))
-      .withColumn("CRASH_DAY", split(col(column_name),"[\\/]").getItem(1))
-      .withColumn("CRASH_YEAR_TIME", split(col(column_name),"[\\/]").getItem(2))
-    dataframe = dataframe.withColumn("CRASH_YEAR", split(col("CRASH_YEAR_TIME"),"\\ ").getItem(0))
-    dataframe = dataframe.withColumn("TIME", split(col("CRASH_YEAR_TIME"),"\\ ").getItem(1)).drop("CRASH_YEAR_TIME")
-    dataframe = dataframe.withColumn("CRASH_HOUR", split(col("TIME"),"\\:").getItem(0)).drop("TIME")
+    var dataframe = df.withColumn("CRASH_MONTH", split(col(column_name),"[\\/]").getItem(0))  // Extracting month from column
+      .withColumn("CRASH_DAY", split(col(column_name),"[\\/]").getItem(1))  // Extracting day from column
+      .withColumn("CRASH_YEAR_TIME", split(col(column_name),"[\\/]").getItem(2)) // Extracting year and time from column
+    dataframe = dataframe.withColumn("CRASH_YEAR", split(col("CRASH_YEAR_TIME"),"\\ ").getItem(0)) // Extracting year from year/time column
+    dataframe = dataframe.withColumn("TIME", split(col("CRASH_YEAR_TIME"),"\\ ").getItem(1)).drop("CRASH_YEAR_TIME") // Extracting time component from year/time column
+    dataframe = dataframe.withColumn("CRASH_HOUR", split(col("TIME"),"\\:").getItem(0)).drop("TIME") // Extracting hour from column
 //    dataframe.show()
     dataframe
   }
 
+  // Method to split driver column and extract details of first driver
   def split_columns_driver(df: sql.DataFrame, column_name: String) :sql.DataFrame = {
-    var dataframe = df.na.fill("D1:()", Array(column_name))
-    dataframe = dataframe.withColumn("Driver_One", split(col(column_name),"[\\)]*[\\/]").getItem(0))
+    var dataframe = df.na.fill("D1:()", Array(column_name)) // Replacing NA with D1:()
+    dataframe = dataframe.withColumn("Driver_One", split(col(column_name),"[\\)]*[\\/]").getItem(0)) // Extracting details of first driver
+    // Cleaning the details of first driver
     dataframe = dataframe.withColumn("Driver_Control",regexp_replace(col("Driver_One"),"[D1:]*[D2:]*[D3:]*[D4:]","")).drop("Driver_One")
     dataframe = dataframe.withColumn("First",regexp_replace(col("Driver_Control"),"[\\(]*[\\)]","")).drop("Driver_Control")
     dataframe = dataframe.withColumn("First_" + column_name,regexp_replace(col("First"),"[\\(]","")).drop("First")
