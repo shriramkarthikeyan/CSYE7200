@@ -24,30 +24,33 @@ class crashes(locality: String){
     this.road = road
   }
 
+  // Method to filter records as per specific value in a columns
   def filter_records(df:sql.DataFrame, column: String, value: String): sql.DataFrame ={
     var filtered_data = df.filter(col(column).like("%"+value+"%"))
     filtered_data
   }
 
+  // Method to get records based on constructor values
   def crash_records(df:sql.DataFrame): sql.DataFrame = {
     try {
       var data = df
-      var desiredThings:Map[String, String] = Map()
+      var desiredThings:Map[String, String] = Map() // Defining empty map
+      // Adding values to the map
       (if (locality != null) desiredThings = desiredThings + ("LCLTY_NAME" -> locality))
       (if (age > 0) desiredThings = desiredThings + ("DRIVER_AGE" -> age.toString))
       (if (vehicle != null) desiredThings = desiredThings + ("VEHC_CONFIG_CL" -> vehicle))
       (if (weather != null) desiredThings = desiredThings + ("WEATH_COND_DESCR" -> weather))
       (if (road != null) desiredThings = desiredThings + ("ROAD_SURF_COND_DESCR" -> road))
 
-      var df_c = df.filter(col("DRIVER_AGE").like("-99"))
+      var df_c = df.filter(col("DRIVER_AGE").like("-99")) // creating empty dataframe
       //println("desiredThings = " + desiredThings)
 
       breakable
-      {
+      { // Iterating through map
         desiredThings.keys.foreach { i =>
           //println("Key = " + i)
           //println(" Value = " + desiredThings(i))
-          df_c = filter_records(data,col(i).toString(),desiredThings(i))
+          df_c = filter_records(data,col(i).toString(),desiredThings(i)) // filtering records as per values in map
           data = df_c
 
         }
@@ -64,6 +67,7 @@ class crashes(locality: String){
     }
   }
 
+  // Method to filter specific columns from a dataframe
   def filter_crashes(df: sql.DataFrame): sql.DataFrame = {
     var DTInput = df.select(
       "CRASH_DATETIME"
@@ -84,7 +88,7 @@ class crashes(locality: String){
        ,"ALC_SUSPD_TYPE_DESCR"
       ,"DRVR_CNTRB_CIRC_CL"
     )
-    DTInput = DTInput.dropDuplicates()
+    DTInput = DTInput.dropDuplicates() // dropping duplicates
     DTInput
   }
 }
